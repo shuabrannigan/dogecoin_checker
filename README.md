@@ -26,7 +26,9 @@ The server will notify you of the following
 if Notify Current `True`
 
 `.. $ 0.04724 USD` - [**Current Value**] - **stable**
+
 `++ $ 0.04800 USD` - [**Current Value**] - **higher**
+
 `-- $ 0.03800 USD` - [**Current Value**] - **loss**
 
 when it drops below your current percent drop 
