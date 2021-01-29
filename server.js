@@ -4,8 +4,15 @@ const cheerio = require("cheerio");
 const { response } = require("express");
 const app = express();
 const argv = process.argv.slice(2);
-const PORT = argv[0];
+const PORT = argv[0] || 3000;
 const total = argv[1] || 0;
+const percentDropped = argv[2] || 5;
+let notifyCurrent = false;
+const notifyEvery = argv[4] || 5;
+
+if (argv[3] === "true") {
+  notifyCurrent = true;
+}
 
 console.log(process.argv);
 
@@ -21,37 +28,58 @@ app.listen(PORT, () => {
   console.log(`Doge Server Listening on port ${PORT}`);
   let first = null;
   let previous = null;
+  let previousHigh = null;
   let previous_check = null;
   setInterval(() => {
     axios(URL)
       .then((response) => {
-        const html = response.data;
-        const $ = cheerio.load(html);
-        const price = $(selector);
-        let float = price.text().split("$")[1];
-        let num = parseFloat(float);
+        const html = response.data; // get HTML
+        const $ = cheerio.load(html); // parse HTML
+        const price = $(selector); // get price as string
+        let float = price.text().split("$")[1]; // get only numbers
+        let num = parseFloat(float); // stroe as float
+
         if (!first) {
           first = num;
           previous = first;
-          console.log(`$ ${num} USD - $ ${num * total}`);
+          previousHigh = first;
+          console.log(`Opening check, $ ${num} USD - $ ${num * total} USD`);
         } else {
-          if (num > previous) {
-            console.log(` ++ $ ${num} USD - $ ${num * total}`);
-            previous = num;
-          } else if (num === previous) {
-            console.log(` .. $ ${num} USD`);
-          } else if (num < previous) {
-            console.log(` -- $ ${num} USD`);
+          switch (notifyCurrent) {
+            case true:
+              if (num > previous) {
+                console.log(` ++ $ ${num} USD - $ ${num * total} USD`);
+                previous = num;
+                return;
+              } else if (num === previous) {
+                console.log(`.. $ ${num} USD - $ ${num * total} USD`);
+                return;
+              } else if (num < previous) {
+                console.log(`-- $ ${num} USD - $ ${num * total} USD`);
+                return;
+              }
+              break;
+            case false:
+              if (num > previous) {
+                console.log(` ++ $ ${num} USD - $ ${num * total} USD`);
+                previous = num;
+                return;
+              }
+              break;
+          }
+
+          let five_less = (percentDropped / 100) * previous;
+          let check_value = previous - five_less;
+
+          if (num < check_value && check_value !== previous_check) {
+            previous_check = check_value;
+            console.log(
+              ` $ ${price.text()} USD, price has dropped ${percentDropped}%`
+            );
           }
         }
-        let five_less = (5 / 100) * previous;
-        let check_value = previous - five_less;
-        if (num < check_value && check_value !== previous_check) {
-          previous_check = check_value;
-          console.log(`${price.text()} USD, Its dropped 5%`);
-        }
-        // previous = float;
+        previous = num;
       })
       .catch(console.error);
-  }, 5000);
+  }, notifyEvery * 1000);
 });
